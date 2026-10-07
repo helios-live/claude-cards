@@ -3,7 +3,7 @@
  * Usage inside a show_widget payload (spec first, loader last):
  *
  *   <script type="application/json" class="hc">{"type":"decision", ...}</script>
- *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.3.0/card.js"></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.3.1/card.js"></script>
  *
  * Always pin an exact tag. Breaking changes ship as a new major tag (v2.0.0),
  * so existing pins never change under you.
@@ -32,7 +32,7 @@
  */
 (function () {
   var CSS =
-    ".c{border:.5px solid var(--border);border-radius:12px;padding:20px;background:var(--surface-2);max-width:680px}" +
+    ".c{border:.5px solid var(--border);border-radius:12px;padding:20px;background:var(--surface-2);box-sizing:border-box;width:100%}" +
     ".pl{font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px}" +
     ".hd{display:flex;gap:10px;align-items:center;margin-bottom:6px}.sub{font-size:12px;color:var(--text-muted)}" +
     ".c h2{font-size:18px;font-weight:500;margin:0 0 16px}.c.rp h2{margin-bottom:4px}" +
