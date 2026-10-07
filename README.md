@@ -5,7 +5,7 @@ Decision and report cards for Claude `show_widget` payloads.
 ```html
 <div class="hcm" style="font-size:13px;color:var(--text-muted)">Loading card…</div>
 <script type="application/json" class="hc">{"type":"decision", ...}</script>
-<script>var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.1.0/card.js';s.onload=function(){document.querySelector('.hcm').remove()};s.onerror=function(){document.querySelector('.hcm').textContent='Card failed to load'};document.body.appendChild(s)</script>
+<script>var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.2.0/card.js';s.onload=function(){document.querySelector('.hcm').remove()};s.onerror=function(){document.querySelector('.hcm').textContent='Card failed to load'};document.body.appendChild(s)</script>
 ```
 
 Load it with the small inline loader above: a plain `<script src>` tag is not

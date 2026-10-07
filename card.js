@@ -3,16 +3,22 @@
  * Usage inside a show_widget payload (spec first, loader last):
  *
  *   <script type="application/json" class="hc">{"type":"decision", ...}</script>
- *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.1.0/card.js"></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.2.0/card.js"></script>
  *
  * Always pin an exact tag. Breaking changes ship as a new major tag (v2.0.0),
  * so existing pins never change under you.
  *
  * Decision spec:
  *   {"type":"decision","id":"D7","level":"blocks"|"nice","question":"Do X → Y?",
+ *    "context":"What this is and why you're asked, in plain words.",   (v1.2)
  *    "multi":false,
  *    "rows":[{"tag":"changed"|"new"|"risk"|"decided","text":"...","settled":false}],
- *    "options":[{"name":"short","label":"Self-explaining label","rec":true}]}
+ *    "options":[{"name":"short","label":"Self-explaining label","rec":true,
+ *                "gain":["..."],"cost":["..."],"risk":["..."]}],          (v1.2)
+ *    "ifno":"What happens if nothing is picked / the answer is no."}      (v1.2)
+ *   gain/cost/risk: string or list (one item per line); "" or "-" = dash.
+ *   If any option has them, options render as a table (Option · Gain ·
+ *   Costs you · Risk), otherwise as buttons.
  *   Reply sent back: "D7: 1. short; 2. other."
  *
  * Report spec (optional "decision" = a decision spec without "type"; it is
@@ -48,7 +54,28 @@
     ".out{border:.5px solid var(--border-strong);color:var(--text-secondary)}.sec2{color:var(--text-secondary)}" +
     ".dn{color:var(--text-muted);font-size:13px}" +
     ".dq{border:.5px solid var(--border-strong);border-radius:10px;padding:14px 16px;margin-bottom:8px}" +
-    ".dq h3{font-size:16px;font-weight:500;margin:0 0 12px}.dq .rows{margin-bottom:14px}";
+    ".dq h3{font-size:16px;font-weight:500;margin:0 0 12px}.dq .rows{margin-bottom:14px}" +
+    ".ctx{font-size:14px;line-height:1.6;color:var(--text-secondary);margin:-6px 0 16px;padding:10px 12px;background:var(--surface-1);border-radius:8px}" +
+    ".ot{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}" +
+    ".ot th{text-align:left;padding:4px 8px 8px;border-bottom:.5px solid var(--border);font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap}" +
+    ".ot td{padding:10px 8px;border-bottom:.5px solid var(--border);vertical-align:top;line-height:1.45}" +
+    ".ot tr.pk{cursor:pointer}.ot tr:has(.opt[aria-pressed=true]) td,.ot tr:has(input:checked) td{background:var(--bg-accent)}" +
+    ".ot .opt{border:none;background:none;padding:0;font-size:14px;font-weight:500;align-items:flex-start;min-width:130px}" +
+    ".ot .opt[aria-pressed=true]{background:none}" +
+    ".rb{display:inline-block;margin-top:4px;font-size:11px;font-weight:500;padding:1px 7px;border-radius:999px;background:var(--bg-accent);color:var(--text-accent)}" +
+    ".dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none;transform:translateY(-1px)}" +
+    ".ot th .dot{margin-right:6px;width:8px;height:8px}" +
+    ".dg{background:color-mix(in srgb,var(--text-success) 60%,transparent)}" +
+    ".da{background:color-mix(in srgb,var(--text-warning) 60%,transparent)}" +
+    ".dr{background:color-mix(in srgb,var(--text-danger) 60%,transparent)}" +
+    ".it{display:flex;gap:7px;align-items:baseline}.it+.it{margin-top:5px}" +
+    ".cg{color:color-mix(in srgb,var(--text-success) 25%,var(--text-secondary))}" +
+    ".ca{color:color-mix(in srgb,var(--text-warning) 25%,var(--text-secondary))}" +
+    ".cr{color:color-mix(in srgb,var(--text-danger) 25%,var(--text-secondary))}" +
+    ".ifno{font-size:13px;color:var(--text-muted);margin:-4px 0 12px}";
+
+  // option table columns: [spec key, header, dot class, text class]
+  var COLS = [["gain", "Gain", "dg", "cg"], ["cost", "Costs you", "da", "ca"], ["risk", "Risk", "dr", "cr"]];
 
   var TAGS = { changed: "a", "new": "a", risk: "r" };
   // kind: [section, tag class, icon, row class, text class]
@@ -78,10 +105,48 @@
       "</span></div><h2>" + e(title) + "</h2>";
   }
 
+  function pick(o, k, multi, inner) {
+    var cls = o.rec ? "opt rec" : "opt";
+    return multi
+      ? '<label class="' + cls + '"><input type="checkbox" data-k="' + k + '" data-name="' + e(o.name) + '">' + inner + "</label>"
+      : '<button type="button" class="' + cls + '" data-k="' + k + '" data-name="' + e(o.name) + '">' + inner + "</button>";
+  }
+
+  function optionButtons(opts, multi) {
+    var h = '<div class="fl" style="margin-bottom:12px">';
+    opts.forEach(function (o, i) { h += pick(o, i + 1, multi, '<span class="nb">' + (i + 1) + "</span>" + e(o.label)); });
+    return h + "</div>";
+  }
+
+  // One row per option; gain / cost / risk cells hold one item per line, each
+  // starting with a colored dot. Empty cell = muted dash.
+  function optionTable(opts, multi) {
+    var h = '<table class="ot"><tr><th></th><th>Option</th>';
+    COLS.forEach(function (c) { h += '<th><span class="dot ' + c[2] + '"></span>' + c[1] + "</th>"; });
+    h += "</tr>";
+    opts.forEach(function (o, i) {
+      var k = i + 1, name = "<span>" + e(o.label) + (o.rec ? '<br><span class="rb">recommended</span>' : "") + "</span>";
+      h += '<tr class="pk"><td><span class="nb">' + k + "</span></td><td>" + pick(o, k, multi, name).replace(" rec", "") + "</td>";
+      COLS.forEach(function (c) {
+        var v = o[c[0]], items = (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]).filter(function (x) {
+          return x != null && x !== "" && x !== "-";
+        });
+        h += items.length
+          ? '<td class="' + c[3] + '">' + items.map(function (x) {
+              return '<div class="it"><span class="dot ' + c[2] + '"></span><span>' + e(x) + "</span></div>";
+            }).join("") + "</td>"
+          : '<td class="mu">—</td>';
+      });
+      h += "</tr>";
+    });
+    return h + "</table>";
+  }
+
   function decisionBody(s) {
     var multi = !!s.multi, rows = s.rows || [];
     var must = rows.filter(function (r) { return !settled(r); }), done = rows.filter(settled);
-    var h = '<div class="rows">';
+    var h = s.context ? '<div class="ctx">' + e(s.context) + "</div>" : "";
+    h += '<div class="rows">';
     must.forEach(function (r) {
       h += '<div class="row"><span class="tg ' + (TAGS[r.tag] || "a") + '">' + e(r.tag) + '</span><span class="must">' +
         e(r.text) + "</span></div>";
@@ -90,14 +155,12 @@
     done.forEach(function (r) {
       h += '<div class="row mu"><span class="tg gr">' + e(r.tag) + "</span><span>" + e(r.text) + "</span></div>";
     });
-    h += '</div><div class="fl" style="margin-bottom:12px">';
-    (s.options || []).forEach(function (o, i) {
-      var k = i + 1, cls = o.rec ? "opt rec" : "opt", inner = '<span class="nb">' + k + "</span>" + e(o.label);
-      h += multi
-        ? '<label class="' + cls + '"><input type="checkbox" data-k="' + k + '" data-name="' + e(o.name) + '">' + inner + "</label>"
-        : '<button type="button" class="' + cls + '" data-k="' + k + '" data-name="' + e(o.name) + '">' + inner + "</button>";
-    });
-    return h + '</div><div class="fl"><button type="button" class="bt send">Send</button>' +
+    h += "</div>";
+    var opts = s.options || [];
+    var table = opts.some(function (o) { return o.gain != null || o.cost != null || o.risk != null; });
+    h += table ? optionTable(opts, multi) : optionButtons(opts, multi);
+    if (s.ifno) h += '<div class="ifno">If you say no: ' + e(s.ifno) + "</div>";
+    return h + '<div class="fl"><button type="button" class="bt send">Send</button>' +
       '<button type="button" class="bt copy"><i class="ti ti-copy" aria-hidden="true"></i> Copy</button></div>' +
       '<div class="sub" style="margin-top:8px">Sends: <span class="pv"></span></div>' +
       '<div class="st" style="font-size:13px;margin-top:4px"></div>';
@@ -151,6 +214,14 @@
       });
     });
     xs.forEach(function (i) { i.addEventListener("change", rf); });
+    // option table: a click anywhere on the row picks that option
+    [].slice.call(c.querySelectorAll("tr.pk")).forEach(function (tr) {
+      tr.addEventListener("click", function (ev) {
+        if (ev.target.closest(".opt")) return;
+        var o = tr.querySelector(".opt");
+        if (o) (o.tagName === "LABEL" ? o.querySelector("input") : o).click();
+      });
+    });
     function msg() {
       var p = xs.length ? xs.filter(function (i) { return i.checked; })
         : bs.filter(function (b) { return b.getAttribute("aria-pressed") === "true"; });
