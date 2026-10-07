@@ -3,7 +3,7 @@
  * Usage inside a show_widget payload (spec first, loader last):
  *
  *   <script type="application/json" class="hc">{"type":"decision", ...}</script>
- *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.2.0/card.js"></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.3.0/card.js"></script>
  *
  * Always pin an exact tag. Breaking changes ship as a new major tag (v2.0.0),
  * so existing pins never change under you.
@@ -12,11 +12,14 @@
  *   {"type":"decision","id":"D7","level":"blocks"|"nice","question":"Do X → Y?",
  *    "context":"What this is and why you're asked, in plain words.",   (v1.2)
  *    "multi":false,
- *    "rows":[{"tag":"changed"|"new"|"risk"|"decided","text":"...","settled":false}],
+ *    "rows":[{"tag":"info"|"change needed"|"risk"|"decided","text":"...","settled":false}],
+ *      (v1.3: "new" shows as info, "changed" as change needed)
  *    "options":[{"name":"short","label":"Self-explaining label","rec":true,
  *                "gain":["..."],"cost":["..."],"risk":["..."]}],          (v1.2)
  *    "ifno":"What happens if nothing is picked / the answer is no."}      (v1.2)
  *   gain/cost/risk: string or list (one item per line); "" or "-" = dash.
+ *   In the table the option shows as "1. Label" — keep labels to 1-3 words,
+ *   the columns carry the detail. (v1.3)
  *   If any option has them, options render as a table (Option · Gain ·
  *   Costs you · Risk), otherwise as buttons.
  *   Reply sent back: "D7: 1. short; 2. other."
@@ -33,7 +36,7 @@
     ".pl{font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px}" +
     ".hd{display:flex;gap:10px;align-items:center;margin-bottom:6px}.sub{font-size:12px;color:var(--text-muted)}" +
     ".c h2{font-size:18px;font-weight:500;margin:0 0 16px}.c.rp h2{margin-bottom:4px}" +
-    ".tg{font-size:11px;font-weight:500;padding:2px 8px;border-radius:6px;min-width:64px;text-align:center;flex:none}" +
+    ".tg{font-size:11px;font-weight:500;padding:2px 8px;border-radius:6px;min-width:64px;text-align:center;flex:none;white-space:nowrap}" +
     ".must{color:color-mix(in srgb,var(--text-danger) 60%,var(--text-primary))}.mu{color:var(--text-muted)}" +
     ".r{background:var(--bg-danger);color:var(--text-danger)}.a{background:var(--bg-warning);color:var(--text-warning)}" +
     ".g{background:var(--bg-success);color:var(--text-success)}.b{background:var(--bg-accent);color:var(--text-accent)}" +
@@ -48,7 +51,7 @@
     ".pv{font-family:var(--font-mono);color:var(--text-secondary);user-select:all}" +
     ".sec{font-size:11px;color:var(--text-muted);margin:14px 0 6px}" +
     ".ln{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;line-height:1.4}" +
-    ".ln .tg{min-width:78px}.ln a{color:inherit}" +
+    ".rows .tg{min-width:98px;box-sizing:border-box}.ln .tg{min-width:78px}.ln a{color:inherit}" +
     ".ym{background:var(--bg-danger);color:var(--text-danger)}.ym .tg{background:var(--surface-2);color:var(--text-danger)}.ym .tx{font-weight:500}" +
     ".dsh{border:1px dashed var(--border-warning);color:var(--text-warning)}" +
     ".out{border:.5px solid var(--border-strong);color:var(--text-secondary)}.sec2{color:var(--text-secondary)}" +
@@ -61,7 +64,7 @@
     ".ot td{padding:10px 8px;border-bottom:.5px solid var(--border);vertical-align:top;line-height:1.45}" +
     ".ot tr.pk{cursor:pointer}.ot tr:has(.opt[aria-pressed=true]) td,.ot tr:has(input:checked) td{background:var(--bg-accent)}" +
     ".ot .opt{border:none;background:none;padding:0;font-size:14px;font-weight:500;align-items:flex-start;min-width:130px}" +
-    ".ot .opt[aria-pressed=true]{background:none}" +
+    ".ot .opt[aria-pressed=true]{background:none}.ot .opt input{margin-top:3px}" +
     ".rb{display:inline-block;margin-top:4px;font-size:11px;font-weight:500;padding:1px 7px;border-radius:999px;background:var(--bg-accent);color:var(--text-accent)}" +
     ".dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none;transform:translateY(-1px)}" +
     ".ot th .dot{margin-right:6px;width:8px;height:8px}" +
@@ -77,7 +80,11 @@
   // option table columns: [spec key, header, dot class, text class]
   var COLS = [["gain", "Gain", "dg", "cg"], ["cost", "Costs you", "da", "ca"], ["risk", "Risk", "dr", "cr"]];
 
-  var TAGS = { changed: "a", "new": "a", risk: "r" };
+  // row tags: info (blue), change needed (amber), risk (red), decided (gray).
+  // "new" / "changed" are the pre-1.3 names, still accepted.
+  var TAGS = { info: "b", "new": "b", "change needed": "a", changed: "a", risk: "r" };
+  var TAGNAME = { "new": "info", changed: "change needed" };
+  function tagName(t) { return TAGNAME[t] || t; }
   // kind: [section, tag class, icon, row class, text class]
   var LINES = {
     "your move": ["Needs you", "", "hand-finger", "ym", ""],
@@ -121,12 +128,12 @@
   // One row per option; gain / cost / risk cells hold one item per line, each
   // starting with a colored dot. Empty cell = muted dash.
   function optionTable(opts, multi) {
-    var h = '<table class="ot"><tr><th></th><th>Option</th>';
+    var h = '<table class="ot"><tr><th>Option</th>';
     COLS.forEach(function (c) { h += '<th><span class="dot ' + c[2] + '"></span>' + c[1] + "</th>"; });
     h += "</tr>";
     opts.forEach(function (o, i) {
-      var k = i + 1, name = "<span>" + e(o.label) + (o.rec ? '<br><span class="rb">recommended</span>' : "") + "</span>";
-      h += '<tr class="pk"><td><span class="nb">' + k + "</span></td><td>" + pick(o, k, multi, name).replace(" rec", "") + "</td>";
+      var k = i + 1, name = "<span>" + k + ". " + e(o.label) + (o.rec ? '<br><span class="rb">recommended</span>' : "") + "</span>";
+      h += '<tr class="pk"><td>' + pick(o, k, multi, name).replace(" rec", "") + "</td>";
       COLS.forEach(function (c) {
         var v = o[c[0]], items = (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]).filter(function (x) {
           return x != null && x !== "" && x !== "-";
@@ -148,12 +155,12 @@
     var h = s.context ? '<div class="ctx">' + e(s.context) + "</div>" : "";
     h += '<div class="rows">';
     must.forEach(function (r) {
-      h += '<div class="row"><span class="tg ' + (TAGS[r.tag] || "a") + '">' + e(r.tag) + '</span><span class="must">' +
+      h += '<div class="row"><span class="tg ' + (TAGS[r.tag] || "a") + '">' + e(tagName(r.tag)) + '</span><span class="must">' +
         e(r.text) + "</span></div>";
     });
     if (must.length && done.length) h += '<div class="hr"></div>';
     done.forEach(function (r) {
-      h += '<div class="row mu"><span class="tg gr">' + e(r.tag) + "</span><span>" + e(r.text) + "</span></div>";
+      h += '<div class="row mu"><span class="tg gr">' + e(tagName(r.tag)) + "</span><span>" + e(r.text) + "</span></div>";
     });
     h += "</div>";
     var opts = s.options || [];
