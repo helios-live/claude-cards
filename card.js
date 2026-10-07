@@ -3,7 +3,7 @@
  * Usage inside a show_widget payload (spec first, loader last):
  *
  *   <script type="application/json" class="hc">{"type":"decision", ...}</script>
- *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.0.0/card.js"></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.1.0/card.js"></script>
  *
  * Always pin an exact tag. Breaking changes ship as a new major tag (v2.0.0),
  * so existing pins never change under you.
@@ -15,8 +15,9 @@
  *    "options":[{"name":"short","label":"Self-explaining label","rec":true}]}
  *   Reply sent back: "D7: 1. short; 2. other."
  *
- * Report spec:
- *   {"type":"report","topic":"...","title":"...",
+ * Report spec (optional "decision" = a decision spec without "type"; it is
+ * drawn inside "Needs you" so a report never needs a second card):
+ *   {"type":"report","topic":"...","title":"...","decision":{...},
  *    "lines":[{"kind":"your move"|"blocked"|"risk"|"in progress"|"not visible"|
  *              "next"|"check it"|"done","text":"...","url":"https://..."}]}
  */
@@ -45,7 +46,9 @@
     ".ym{background:var(--bg-danger);color:var(--text-danger)}.ym .tg{background:var(--surface-2);color:var(--text-danger)}.ym .tx{font-weight:500}" +
     ".dsh{border:1px dashed var(--border-warning);color:var(--text-warning)}" +
     ".out{border:.5px solid var(--border-strong);color:var(--text-secondary)}.sec2{color:var(--text-secondary)}" +
-    ".dn{color:var(--text-muted);font-size:13px}";
+    ".dn{color:var(--text-muted);font-size:13px}" +
+    ".dq{border:.5px solid var(--border-strong);border-radius:10px;padding:14px 16px;margin-bottom:8px}" +
+    ".dq h3{font-size:16px;font-weight:500;margin:0 0 12px}.dq .rows{margin-bottom:14px}";
 
   var TAGS = { changed: "a", "new": "a", risk: "r" };
   // kind: [section, tag class, icon, row class, text class]
@@ -75,13 +78,10 @@
       "</span></div><h2>" + e(title) + "</h2>";
   }
 
-  function decision(s) {
-    var blocks = (s.level || "blocks") === "blocks", multi = !!s.multi, rows = s.rows || [];
+  function decisionBody(s) {
+    var multi = !!s.multi, rows = s.rows || [];
     var must = rows.filter(function (r) { return !settled(r); }), done = rows.filter(settled);
-    var h = '<h2 class="sr-only">Decision card ' + e(s.id) + ": " + e(s.question) + "</h2>" +
-      '<div class="c" data-d="' + e(s.id) + '">' +
-      head(blocks ? "r" : "b", blocks ? "Blocks" : "Nice", s.id + (multi ? " · tick any" : ""), s.question) +
-      '<div class="rows">';
+    var h = '<div class="rows">';
     must.forEach(function (r) {
       h += '<div class="row"><span class="tg ' + (TAGS[r.tag] || "a") + '">' + e(r.tag) + '</span><span class="must">' +
         e(r.text) + "</span></div>";
@@ -97,11 +97,28 @@
         ? '<label class="' + cls + '"><input type="checkbox" data-k="' + k + '" data-name="' + e(o.name) + '">' + inner + "</label>"
         : '<button type="button" class="' + cls + '" data-k="' + k + '" data-name="' + e(o.name) + '">' + inner + "</button>";
     });
-    h += '</div><div class="fl"><button type="button" class="bt send">Send</button>' +
+    return h + '</div><div class="fl"><button type="button" class="bt send">Send</button>' +
       '<button type="button" class="bt copy"><i class="ti ti-copy" aria-hidden="true"></i> Copy</button></div>' +
       '<div class="sub" style="margin-top:8px">Sends: <span class="pv"></span></div>' +
-      '<div class="st" style="font-size:13px;margin-top:4px"></div></div>';
-    return h;
+      '<div class="st" style="font-size:13px;margin-top:4px"></div>';
+  }
+
+  function pillOf(s) {
+    var blocks = (s.level || "blocks") === "blocks";
+    return [blocks ? "r" : "b", blocks ? "Blocks" : "Nice", s.id + (s.multi ? " · tick any" : "")];
+  }
+
+  function decision(s) {
+    var p = pillOf(s);
+    return '<h2 class="sr-only">Decision card ' + e(s.id) + ": " + e(s.question) + "</h2>" +
+      '<div class="c" data-d="' + e(s.id) + '">' + head(p[0], p[1], p[2], s.question) + decisionBody(s) + "</div>";
+  }
+
+  // A decision embedded in a report's "Needs you" section: one card, not two.
+  function embedded(s) {
+    var p = pillOf(s);
+    return '<div class="dq" data-d="' + e(s.id) + '"><div class="hd"><span class="pl ' + p[0] + '">' + e(p[1]) +
+      '</span><span class="sub">' + e(p[2]) + "</span></div><h3>" + e(s.question) + "</h3>" + decisionBody(s) + "</div>";
   }
 
   function report(s) {
@@ -109,8 +126,10 @@
       head("g", "Report", s.topic || "", s.title);
     SECTIONS.forEach(function (sec) {
       var ls = (s.lines || []).filter(function (l) { return LINES[l.kind] && LINES[l.kind][0] === sec; });
-      if (!ls.length) return;
+      var dq = sec === "Needs you" && s.decision;
+      if (!ls.length && !dq) return;
       h += '<div class="sec">' + sec + "</div>";
+      if (dq) h += embedded(s.decision);
       ls.forEach(function (l) {
         var d = LINES[l.kind], text = e(l.text);
         if (l.url) text += ' · <a href="' + e(l.url) + '">' + e(l.url) + "</a>";
@@ -175,7 +194,6 @@
     }
     if (tag.parentNode === document.head) document.body.insertBefore(box, document.body.firstChild);
     else tag.parentNode.insertBefore(box, tag);
-    var c = box.querySelector(".c[data-d]");
-    if (c) wire(c);
+    [].slice.call(box.querySelectorAll("[data-d]")).forEach(wire);
   });
 })();

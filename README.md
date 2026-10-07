@@ -4,7 +4,7 @@ Decision and report cards for Claude `show_widget` payloads.
 
 ```html
 <script type="application/json" class="hc">{"type":"decision", ...}</script>
-<script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.0.0/card.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.1.0/card.js"></script>
 ```
 
 Spec format is documented at the top of `card.js`.
