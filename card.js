@@ -3,7 +3,7 @@
  * Usage inside a show_widget payload (spec first, loader last):
  *
  *   <script type="application/json" class="hc">{"type":"decision", ...}</script>
- *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.3.1/card.js"></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.3.2/card.js"></script>
  *
  * Always pin an exact tag. Breaking changes ship as a new major tag (v2.0.0),
  * so existing pins never change under you.
@@ -46,7 +46,7 @@
     ".hr{border-top:.5px solid var(--border);margin:4px 0}.fl{display:flex;flex-wrap:wrap;gap:8px}" +
     ".nb{font-size:12px;font-weight:500;width:22px;height:22px;border-radius:50%;border:.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;flex:none;color:var(--text-secondary)}" +
     ".opt,.bt{display:flex;gap:8px;align-items:center;border-radius:var(--radius);padding:8px 14px;background:var(--surface-2);font-size:14px;cursor:pointer;border:.5px solid var(--border-strong);text-align:left;color:inherit;font-family:inherit}" +
-    ".rec,.send{border:2px solid var(--border-accent)}.opt[aria-pressed=true],.opt:has(input:checked){background:var(--bg-accent)}" +
+    ".rec{border:2px solid var(--border-accent)}.bt.send{background:color-mix(in srgb,var(--bg-accent) 55%,transparent);border:.5px solid color-mix(in srgb,var(--border-accent) 35%,transparent);color:color-mix(in srgb,var(--text-accent) 70%,var(--text-secondary))}.bt.copy{background:color-mix(in srgb,var(--bg-warning) 55%,transparent);border:.5px solid color-mix(in srgb,var(--border-warning) 35%,transparent);color:color-mix(in srgb,var(--text-warning) 70%,var(--text-secondary))}.opt[aria-pressed=true],.opt:has(input:checked){background:var(--bg-accent)}" +
     ".opt input{margin:0}.bt:disabled{opacity:.5;cursor:default}" +
     ".pv{font-family:var(--font-mono);color:var(--text-secondary);user-select:all}" +
     ".sec{font-size:11px;color:var(--text-muted);margin:14px 0 6px}" +
@@ -63,7 +63,7 @@
     ".ot th{text-align:left;padding:4px 8px 8px;border-bottom:.5px solid var(--border);font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap}" +
     ".ot td{padding:10px 8px;border-bottom:.5px solid var(--border);vertical-align:top;line-height:1.45}" +
     ".ot tr.pk{cursor:pointer}.ot tr:has(.opt[aria-pressed=true]) td,.ot tr:has(input:checked) td{background:var(--bg-accent)}" +
-    ".ot .opt{border:none;background:none;padding:0;font-size:14px;font-weight:500;align-items:flex-start;min-width:130px}" +
+    ".ot .opt{border:0!important;outline:0;box-shadow:none!important;background:transparent!important;padding:0!important;font-size:14px;font-weight:400!important;color:var(--text-primary)!important;align-items:flex-start;min-width:130px}" +
     ".ot .opt[aria-pressed=true]{background:none}.ot .opt input{margin-top:3px}" +
     ".rb{display:inline-block;margin-top:4px;font-size:11px;font-weight:500;padding:1px 7px;border-radius:999px;background:var(--bg-accent);color:var(--text-accent)}" +
     ".dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none;transform:translateY(-1px)}" +
