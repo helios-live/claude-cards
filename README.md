@@ -4,8 +4,11 @@ Decision and report cards for Claude `show_widget` payloads.
 
 ```html
 <script type="application/json" class="hc">{"type":"decision", ...}</script>
-<script src="https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.1.0/card.js"></script>
+<script>var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/helios-live/claude-cards@v1.1.0/card.js';document.body.appendChild(s)</script>
 ```
+
+Load it with the small inline loader above: a plain `<script src>` tag is not
+reliably executed by widget hosts that stream HTML.
 
 Spec format is documented at the top of `card.js`.
 
